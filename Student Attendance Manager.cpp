@@ -1,157 +1,129 @@
+
 #include <iostream>
+#include <vector>
 #include <string>
-#include <regex>
-#include <fstream>
+
 using namespace std;
 
-class Registration {
-    string name1, name2, email, username, password;
-
+// Student class
+class Student {
 public:
-    bool isValidEmail(const string &email);
-    bool isEmpty(const string &str);
-    bool isExistUsername(const string &username);
-    void signUp();
-    static bool signIn(const string &u, const string &p);
+    string name;
+    string className;
+    string section;
+    vector<bool> attendance;
+
+    Student(string n, string c, string s) : name(n), className(c), section(s) {}
+
+    void markAttendance(bool status) {
+        attendance.push_back(status);
+    }
+
+    double getAttendancePercentage() {
+        int presentDays = 0;
+        for (bool status : attendance) {
+            if (status) presentDays++;
+        }
+        return (double)presentDays / attendance.size() * 100;
+    }
 };
 
-// Main Function
-int main() {
-    int choice;
-    Registration reg;
+// Student Attendance Management System class
+class StudentAttendanceManagementSystem {
+private:
+    vector<Student> students;
 
-    do {
-        cout << "\nRegistration Form\n";
-        cout << "1. Sign In\n2. Sign Up\n0. Exit\nEnter your choice: ";
+public:
+    void addStudent(string name, string className, string section) {
+        Student newStudent(name, className, section);
+        students.push_back(newStudent);
+    }
+
+    void markAttendance(int studentIndex, bool status) {
+        if (studentIndex >= 0 && studentIndex < students.size()) {
+            students[studentIndex].markAttendance(status);
+        } else {
+            cout << "Invalid student index." << endl;
+        }
+    }
+
+    void displayStudentInfo(int studentIndex) {
+        if (studentIndex >= 0 && studentIndex < students.size()) {
+            Student student = students[studentIndex];
+            cout << "Name: " << student.name << endl;
+            cout << "Class: " << student.className << endl;
+            cout << "Section: " << student.section << endl;
+            cout << "Attendance Percentage: " << student.getAttendancePercentage() << "%" << endl;
+        } else {
+            cout << "Invalid student index." << endl;
+        }
+    }
+
+    void displayLowAttendanceStudents() {
+        cout << "Low Attendance Students:" << endl;
+        for (int i = 0; i < students.size(); i++) {
+            if (students[i].getAttendancePercentage() < 75) {
+                cout << "Name: " << students[i].name << endl;
+                cout << "Class: " << students[i].className << endl;
+                cout << "Section: " << students[i].section << endl;
+                cout << "Attendance Percentage: " << students[i].getAttendancePercentage() << "%" << endl;
+                cout << endl;
+            }
+        }
+    }
+};
+
+int main() {
+    StudentAttendanceManagementSystem system;
+
+    while (true) {
+        cout << "1. Add Student" << endl;
+        cout << "2. Mark Attendance" << endl;
+        cout << "3. Display Student Info" << endl;
+        cout << "4. Display Low Attendance Students" << endl;
+        cout << "5. Exit" << endl;
+
+        int choice;
         cin >> choice;
 
         switch (choice) {
-        case 1: {
-            string username, password;
-            cout << "Enter your Username: ";
-            cin >> username;
-            cout << "Enter your Password: ";
-            cin >> password;
-            Registration::signIn(username, password);
-            break;
+            case 1: {
+                string name, className, section;
+                cout << "Enter student name: ";
+                cin >> name;
+                cout << "Enter class name: ";
+                cin >> className;
+                cout << "Enter section: ";
+                cin >> section;
+                system.addStudent(name, className, section);
+                break;
+            }
+            case 2: {
+                int studentIndex;
+                bool status;
+                cout << "Enter student index: ";
+                cin >> studentIndex;
+                cout << "Enter attendance status (1 for present, 0 for absent): ";
+                cin >> status;
+                system.markAttendance(studentIndex, status);
+                break;
+            }
+            case 3: {
+                int studentIndex;
+                cout << "Enter student index: ";
+                cin >> studentIndex;
+                system.displayStudentInfo(studentIndex);
+                break;
+            }
+            case 4:
+                system.displayLowAttendanceStudents();
+                break;
+            case 5:
+                return 0;
+            default:
+                cout << "Invalid choice. Please try again." << endl;
         }
-        case 2:
-            reg.signUp();
-            break;
-        case 0:
-            cout << "Exiting...\n";
-            break;
-        default:
-            cout << "Invalid Choice! Please try again.\n";
-        }
-    } while (choice != 0);
+    }
 
     return 0;
-}
-
-bool Registration::isEmpty(const string &str) {
-    return str.empty();
-}
-
-bool Registration::isValidEmail(const string &email) {
-    const regex pattern(
-        R"((^[\w.%+-]+@(gmail|yahoo|hotmail|outlook|icloud|edu|gov|tech)\.(com|pk|io|org|net|edu|gov|tech)$))"
-    );
-    return regex_match(email, pattern);
-}
-
-bool Registration::isExistUsername(const string &username) {
-    ifstream file("Registration.txt");
-    string storedUsername, temp;
-
-    if (file.is_open()) {
-        while (getline(file, temp, '*')) { 
-            getline(file, temp, '*');   
-            getline(file, storedUsername, '*');
-            getline(file, temp, '\n');   
-            if (storedUsername == username) {
-                file.close();
-                return true;
-            }
-        }
-        file.close();
-    }
-    return false;
-}
-
-void Registration::signUp() {
-    cout << "Enter your First Name: ";
-    cin >> name1;
-    if (isEmpty(name1)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    cout << "Enter your Last Name: ";
-    cin >> name2;
-
-    cout << "Enter your Email Address: ";
-    cin >> email;
-    if (isEmpty(email)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    if (!isValidEmail(email)) {
-        cout << "Invalid Email Address. Try again.\n";
-        return;
-    }
-
-    cout << "Enter your Username: ";
-    cin >> username;
-    if (isEmpty(username)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    if (isExistUsername(username)) {
-        cout << "Username already exists. Try a different username.\n";
-        return;
-    }
-
-    cout << "Enter your Password: ";
-    cin >> password;
-    if (isEmpty(password)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    ofstream file("Registration.txt", ios::app); // Append mode
-    if (file.is_open()) {
-        file << name1 << " " << name2 << "*" << email << "*" << username << "*" << password << "\n";
-        file.close();
-        cout << "Sign Up Successful!\n";
-    } else {
-        cerr << "Error opening file for writing!\n";
-    }
-}
-
-bool Registration::signIn(const string &u, const string &p) {
-    ifstream file("Registration.txt");
-    string storedName, storedEmail, storedUsername, storedPassword;
-
-    if (file.is_open()) {
-        while (getline(file, storedName, '*')) { 
-            getline(file, storedEmail, '*');  
-            getline(file, storedUsername, '*');  
-            getline(file, storedPassword, '\n');  
-
-            if (storedUsername == u && storedPassword == p) {
-                cout << "Login Successful! Welcome, " << storedName << "!\n";
-                file.close();
-                return true;
-            }
-        }
-        file.close();
-        cout << "Invalid Username or Password.\n";
-    } else {
-        cerr << "Error opening file for reading!\n";
-    }
-
-    return false;
 }
