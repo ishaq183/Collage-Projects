@@ -1,157 +1,230 @@
 #include <iostream>
-#include <string>
-#include <regex>
 #include <fstream>
+#include <string>
+#include <algorithm> // for max function
 using namespace std;
 
-class Registration {
-    string name1, name2, email, username, password;
-
+class Student {
 public:
-    bool isValidEmail(const string &email);
-    bool isEmpty(const string &str);
-    bool isExistUsername(const string &username);
-    void signUp();
-    static bool signIn(const string &u, const string &p);
+    int rollNo;
+    string name;
+    int attendanceCount;
+    int presentDays;
+
+    Student() : rollNo(0), attendanceCount(0), presentDays(0) {}
+
+    void markAttendance(bool status) {
+        attendanceCount++;
+        if (status) presentDays++;
+    }
+
+    double getAttendancePercentage() const {
+        if (attendanceCount == 0) return 0.0;
+        return (double)presentDays / attendanceCount * 100;
+    }
+
+    void saveToFile(ofstream &file) const {
+        file << rollNo << endl;
+        file << name << endl;
+        file << attendanceCount << endl;
+        file << presentDays << endl;
+    }
+
+    void loadFromFile(ifstream &file) {
+        file >> rollNo;
+        file.ignore();
+        getline(file, name);
+        file >> attendanceCount >> presentDays;
+        file.ignore();
+    }
 };
 
-// Main Function
-int main() {
-    int choice;
-    Registration reg;
+class AttendanceSystem {
+private:
+    int nextRollNo;
 
-    do {
-        cout << "\nRegistration Form\n";
-        cout << "1. Sign In\n2. Sign Up\n0. Exit\nEnter your choice: ";
+    void updateNextRollNo(const string &className) {
+        ifstream file(className + ".txt");
+        Student temp;
+        int maxRollNo = 0;
+
+        if (file.is_open()) {
+            while (!file.eof()) {
+                temp.loadFromFile(file);
+                if (file.eof()) break;
+                maxRollNo = max(maxRollNo, temp.rollNo);
+            }
+            file.close();
+        }
+        nextRollNo = maxRollNo + 1; // Update the next roll number
+    }
+
+public:
+    AttendanceSystem() : nextRollNo(1) {}
+
+    void addClass() {
+        string className;
+        cout << "Enter class name: ";
+        cin >> className;
+        ofstream file(className + ".txt", ios::app);
+        if (file.is_open()) {
+            cout << "Class " << className << " created successfully!" << endl;
+        } else {
+            cout << "Error creating class." << endl;
+        }
+    }
+
+    void deleteClass() {
+        string className;
+        cout << "Enter class name to delete: ";
+        cin >> className;
+        if (remove((className + ".txt").c_str()) == 0) {
+            cout << "Class " << className << " deleted successfully!" << endl;
+        } else {
+            cout << "Error deleting class or class not found." << endl;
+        }
+    }
+
+    void manageClass() {
+        string className;
+        cout << "Enter class name to manage: ";
+        cin >> className;
+
+        ifstream file(className + ".txt");
+        if (!file.is_open()) {
+            cout << "Class not found!" << endl;
+            return;
+        }
+        file.close();
+
+        updateNextRollNo(className); // Ensure the next roll number is correct
+
+        while (true) {
+            cout << "\n1. Add Student\n2. Mark Attendance\n3. Display Attendance\n4. Back\n";
+            cout << "Enter your choice: ";
+            int choice;
+            cin >> choice;
+
+            switch (choice) {
+                case 1:
+                    addStudent(className);
+                    break;
+                case 2:
+                    markAttendance(className);
+                    break;
+                case 3:
+                    displayAttendance(className);
+                    break;
+                case 4:
+                    return;
+                default:
+                    cout << "Invalid choice. Try again." << endl;
+            }
+        }
+    }
+
+private:
+    void addStudent(const string &className) {
+        Student student;
+        student.rollNo = nextRollNo++; // Assign the next available roll number
+        cin.ignore();
+        cout << "\nEnter name: ";
+        getline(cin, student.name);
+
+        ofstream file(className + ".txt", ios::app);
+        if (file.is_open()) {
+            student.saveToFile(file);
+            file.close();
+            cout << "\nStudent added successfully with Roll No: " << student.rollNo << endl;
+        } else {
+            cout << "\nError saving student." << endl;
+        }
+    }
+
+    void markAttendance(const string &className) {
+        ifstream inputFile(className + ".txt");
+        ofstream tempFile("temp.txt");
+        if (!inputFile.is_open() || !tempFile.is_open()) {
+            cout << "\nError accessing class file." << endl;
+            return;
+        }
+
+        Student student;
+        bool dataFound = false;
+        while (!inputFile.eof()) {
+            student.loadFromFile(inputFile);
+            if (inputFile.eof()) break;
+
+            dataFound = true;
+            cout << "\n\nRoll#: " << student.rollNo << " Name: " << student.name << endl;
+            cout << "Enter 1 for present or 0 for absent: ";
+            int status;
+            while (true) {
+                cin >> status;
+                if (status == 0 || status == 1) {
+                    student.markAttendance(status);
+                    break;
+                } else {
+                    cout << "Invalid input. Enter 1 for present or 0 for absent: ";
+                }
+            }
+            student.saveToFile(tempFile);
+        }
+
+        inputFile.close();
+        tempFile.close();
+
+        remove((className + ".txt").c_str());
+        rename("temp.txt", (className + ".txt").c_str());
+
+        if (!dataFound) {
+            cout << "No students found." << endl;
+        } else {
+            cout << "Attendance marked successfully!" << endl;
+        }
+    }
+
+    void displayAttendance(const string &className) {
+        ifstream file(className + ".txt");
+        if (!file.is_open()) {
+            cout << "Error reading class file." << endl;
+            return;
+        }
+
+        Student student;
+        while (!file.eof()) {
+            student.loadFromFile(file);
+            if (file.eof()) break;
+
+            cout << "\n\nRoll#: " << student.rollNo << " Name: " << student.name << endl;
+            cout << "Attendance Percentage: " << student.getAttendancePercentage() << "%" << endl;
+        }
+        file.close();
+    }
+};
+
+int main() {
+    AttendanceSystem system;
+    while (true) {
+        cout << "\n1. Add Class\n2. Delete Class\n3. Manage Class\n4. Exit\n";
+        cout << "Enter your choice: ";
+        int choice;
         cin >> choice;
 
         switch (choice) {
-        case 1: {
-            string username, password;
-            cout << "Enter your Username: ";
-            cin >> username;
-            cout << "Enter your Password: ";
-            cin >> password;
-            Registration::signIn(username, password);
-            break;
+            case 1:
+                system.addClass();
+                break;
+            case 2:
+                system.deleteClass();
+                break;
+            case 3:
+                system.manageClass();
+                break;
+            case 4:
+                return 0;
+            default:
+                cout << "Invalid choice. Try again." << endl;
         }
-        case 2:
-            reg.signUp();
-            break;
-        case 0:
-            cout << "Exiting...\n";
-            break;
-        default:
-            cout << "Invalid Choice! Please try again.\n";
-        }
-    } while (choice != 0);
-
-    return 0;
-}
-
-bool Registration::isEmpty(const string &str) {
-    return str.empty();
-}
-
-bool Registration::isValidEmail(const string &email) {
-    const regex pattern(
-        R"((^[\w.%+-]+@(gmail|yahoo|hotmail|outlook|icloud|edu|gov|tech)\.(com|pk|io|org|net|edu|gov|tech)$))"
-    );
-    return regex_match(email, pattern);
-}
-
-bool Registration::isExistUsername(const string &username) {
-    ifstream file("Registration.txt");
-    string storedUsername, temp;
-
-    if (file.is_open()) {
-        while (getline(file, temp, '*')) { 
-            getline(file, temp, '*');   
-            getline(file, storedUsername, '*');
-            getline(file, temp, '\n');   
-            if (storedUsername == username) {
-                file.close();
-                return true;
-            }
-        }
-        file.close();
     }
-    return false;
-}
-
-void Registration::signUp() {
-    cout << "Enter your First Name: ";
-    cin >> name1;
-    if (isEmpty(name1)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    cout << "Enter your Last Name: ";
-    cin >> name2;
-
-    cout << "Enter your Email Address: ";
-    cin >> email;
-    if (isEmpty(email)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    if (!isValidEmail(email)) {
-        cout << "Invalid Email Address. Try again.\n";
-        return;
-    }
-
-    cout << "Enter your Username: ";
-    cin >> username;
-    if (isEmpty(username)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    if (isExistUsername(username)) {
-        cout << "Username already exists. Try a different username.\n";
-        return;
-    }
-
-    cout << "Enter your Password: ";
-    cin >> password;
-    if (isEmpty(password)) {
-        cout << "Empty Field. Try again.\n";
-        return;
-    }
-
-    ofstream file("Registration.txt", ios::app); // Append mode
-    if (file.is_open()) {
-        file << name1 << " " << name2 << "*" << email << "*" << username << "*" << password << "\n";
-        file.close();
-        cout << "Sign Up Successful!\n";
-    } else {
-        cerr << "Error opening file for writing!\n";
-    }
-}
-
-bool Registration::signIn(const string &u, const string &p) {
-    ifstream file("Registration.txt");
-    string storedName, storedEmail, storedUsername, storedPassword;
-
-    if (file.is_open()) {
-        while (getline(file, storedName, '*')) { 
-            getline(file, storedEmail, '*');  
-            getline(file, storedUsername, '*');  
-            getline(file, storedPassword, '\n');  
-
-            if (storedUsername == u && storedPassword == p) {
-                cout << "Login Successful! Welcome, " << storedName << "!\n";
-                file.close();
-                return true;
-            }
-        }
-        file.close();
-        cout << "Invalid Username or Password.\n";
-    } else {
-        cerr << "Error opening file for reading!\n";
-    }
-
-    return false;
 }
